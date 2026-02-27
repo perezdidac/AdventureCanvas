@@ -21,19 +21,33 @@ export class Input {
     }
 
     handleMouseMove(event) {
+        const tooltip = document.getElementById('hover-tooltip');
+        const visualCursor = document.getElementById('selected-item-cursor');
+
+        // Update custom visual cursor position if it's visible
+        if (visualCursor && !visualCursor.classList.contains('hidden')) {
+            visualCursor.style.left = `${event.clientX}px`;
+            visualCursor.style.top = `${event.clientY}px`;
+        }
+
         if (this.engine.dialogue.isActive) {
             this.canvas.style.cursor = 'default';
+            if (tooltip) tooltip.style.opacity = '0';
             return;
         }
 
         const { x, y } = this.getCoordinates(event);
         const scene = this.engine.state.getCurrentScene();
         if (!scene || !scene.hotspots) {
-            this.canvas.style.cursor = 'default';
+            if (!this.engine.state.selectedItemId) {
+                this.canvas.style.cursor = 'default';
+            }
+            if (tooltip) tooltip.style.opacity = '0';
             return;
         }
 
-        let isHovering = false;
+        let hoveredHotspotId = null;
+        let hoveredHotspotObj = null;
         // Check if cursor intersects with any hotspot
         for (const [hotspotId, hotspot] of Object.entries(scene.hotspots)) {
             if (
@@ -42,12 +56,30 @@ export class Input {
                 y >= hotspot.y &&
                 y <= hotspot.y + hotspot.height
             ) {
-                isHovering = true;
+                hoveredHotspotId = hotspotId;
+                hoveredHotspotObj = hotspot;
                 break;
             }
         }
 
-        this.canvas.style.cursor = isHovering ? 'pointer' : 'default';
+        if (hoveredHotspotId) {
+            if (!this.engine.state.selectedItemId) {
+                this.canvas.style.cursor = 'pointer';
+            }
+            if (tooltip) {
+                // Capitalize first letter or use custom name if defined
+                const name = hoveredHotspotObj.name || (hoveredHotspotId.charAt(0).toUpperCase() + hoveredHotspotId.slice(1));
+                tooltip.innerText = name;
+                tooltip.style.left = `${event.clientX}px`;
+                tooltip.style.top = `${event.clientY}px`;
+                tooltip.style.opacity = '1';
+            }
+        } else {
+            if (!this.engine.state.selectedItemId) {
+                this.canvas.style.cursor = 'default';
+            }
+            if (tooltip) tooltip.style.opacity = '0';
+        }
     }
 
     handleClick(event) {
@@ -60,7 +92,15 @@ export class Input {
 
     processClick(x, y) {
         const scene = this.engine.state.getCurrentScene();
-        if (!scene || !scene.hotspots) return;
+        if (!scene || !scene.hotspots) {
+            if (this.engine.state.selectedItemId) {
+                this.engine.state.clearSelectedItem();
+            }
+            return;
+        }
+
+        let clickedHotspotId = null;
+        let clickedHotspot = null;
 
         // Check if click intersects with any hotspot
         for (const [hotspotId, hotspot] of Object.entries(scene.hotspots)) {
@@ -70,9 +110,31 @@ export class Input {
                 y >= hotspot.y &&
                 y <= hotspot.y + hotspot.height
             ) {
-                this.handleInteraction(hotspotId, hotspot);
+                clickedHotspotId = hotspotId;
+                clickedHotspot = hotspot;
                 break; // Only interact with one thing per click
             }
+        }
+
+        if (this.engine.state.selectedItemId) {
+            const itemId = this.engine.state.selectedItemId;
+
+            if (clickedHotspot && clickedHotspot.onUseItem) {
+                const consumed = clickedHotspot.onUseItem(this.engine, itemId);
+                if (consumed) {
+                    this.engine.state.removeFromInventory(itemId);
+                }
+            } else if (clickedHotspot) {
+                console.log(`Cannot use ${itemId} on ${clickedHotspotId}`);
+            }
+
+            // Revert cursor back to default (dropping item)
+            this.engine.state.clearSelectedItem();
+            return;
+        }
+
+        if (clickedHotspot) {
+            this.handleInteraction(clickedHotspotId, clickedHotspot);
         }
     }
 

@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AdventureCanvas Demo</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="game-container">
         <!-- The game canvas where backgrounds and scenes are rendered -->
         <canvas id="game-canvas" width="800" height="600"></canvas>
-        
+
         <!-- UI Overlays -->
         <div id="ui-layer">
+            <div id="scene-transition-overlay"></div>
+            <div id="hover-tooltip"></div>
+            <div id="selected-item-cursor" class="hidden"></div>
+
             <div id="intro-screen" class="screen hidden">
                 <h1 id="intro-title">Demo Game</h1>
                 <button id="start-button">Start Game</button>
             </div>
-            
+
             <div id="dialogue-box" class="hidden">
                 <p id="dialogue-text"></p>
                 <div id="dialogue-choices"></div>
@@ -31,6 +37,7 @@
     </div>
 
     <!-- Main Game Script as a Module -->
-    <script type="module" src="game.js"></script>
+    <script type="module" src="game.js?v=2"></script>
 </body>
+
 </html>

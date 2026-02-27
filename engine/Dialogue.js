@@ -16,9 +16,20 @@ export class Dialogue {
             return;
         }
 
+        // Hide tooltip immediately when dialogue starts
+        const tooltip = document.getElementById('hover-tooltip');
+        if (tooltip) tooltip.style.opacity = '0';
+
+        // Also clear any selected item
+        this.engine.state.clearSelectedItem();
+
         this.currentTreeId = treeId;
         this.isActive = true;
-        this.boxEl.classList.remove('hidden');
+        this.boxEl.classList.remove('hidden'); // Ensure no display:none
+        // Add a small timeout so display:block applies before opacity transition triggers
+        setTimeout(() => {
+            this.boxEl.classList.add('visible');
+        }, 10);
 
         this.showNode(startNodeId);
     }
@@ -79,6 +90,14 @@ export class Dialogue {
 
     end() {
         this.isActive = false;
-        this.boxEl.classList.add('hidden');
+        this.boxEl.classList.remove('visible');
+
+        // Let transition finish before potentially applying display:none if someone restores hidden
+        setTimeout(() => {
+            if (!this.isActive) {
+                // Not adding hidden here to allow the CSS transition to work. 
+                // The 'visible' class handles pointer-events and opacity.
+            }
+        }, 300);
     }
 }

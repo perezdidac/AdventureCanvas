@@ -1,8 +1,8 @@
-import { Renderer } from './Renderer.js';
-import { Input } from './Input.js';
-import { State } from './State.js';
-import { Dialogue } from './Dialogue.js';
-import { Screens } from './Screens.js';
+import { Renderer } from './Renderer.js?v=2';
+import { Input } from './Input.js?v=2';
+import { State } from './State.js?v=2';
+import { Dialogue } from './Dialogue.js?v=2';
+import { Screens } from './Screens.js?v=2';
 
 export class Engine {
     constructor(config) {
@@ -25,7 +25,7 @@ export class Engine {
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        this.state.loadScene(this.state.currentSceneId);
+        this.state.loadScene(this.state.initialSceneId);
         requestAnimationFrame((time) => this.gameLoop(time));
     }
 

@@ -1,11 +1,13 @@
 export class State {
     constructor(engine, initialSceneId, scenesData, itemsData) {
         this.engine = engine;
-        this.currentSceneId = initialSceneId;
+        this.initialSceneId = initialSceneId;
+        this.currentSceneId = null; // Start null so the first loadScene triggers properly without fading out "nothing"
         this.scenes = scenesData;
         this.itemData = itemsData;
 
         this.inventory = [];
+        this.selectedItemId = null; // Currently held item
         this.flags = {}; // Game variables (e.g., has_met_guard: true)
     }
 
@@ -13,8 +15,17 @@ export class State {
         return this.scenes[this.currentSceneId];
     }
 
-    loadScene(sceneId) {
+    async loadScene(sceneId) {
         if (this.scenes[sceneId]) {
+            const overlay = document.getElementById('scene-transition-overlay');
+
+            // Fade out current scene if we are already in one
+            if (this.currentSceneId && overlay) {
+                overlay.style.opacity = '1';
+                // Wait for CSS transition (0.5s match style.css)
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
             this.currentSceneId = sceneId;
             console.log(`Loaded scene: ${sceneId}`);
 
@@ -22,6 +33,11 @@ export class State {
             const scene = this.scenes[sceneId];
             if (scene.onEnter) {
                 scene.onEnter(this.engine);
+            }
+
+            // Fade in new scene
+            if (overlay) {
+                overlay.style.opacity = '0';
             }
         } else {
             console.error(`Scene not found: ${sceneId}`);
@@ -57,6 +73,40 @@ export class State {
         return this.inventory.includes(itemId);
     }
 
+    setSelectedItem(itemId) {
+        if (this.hasItem(itemId)) {
+            this.selectedItemId = itemId;
+            const item = this.itemData[itemId];
+            const visualCursor = document.getElementById('selected-item-cursor');
+
+            if (item && item.icon) {
+                if (visualCursor) {
+                    visualCursor.style.backgroundImage = `url(${item.icon})`;
+                    visualCursor.classList.remove('hidden');
+                }
+                // Hide the actual system cursor
+                document.body.style.cursor = 'none';
+                this.engine.canvas.style.cursor = 'none';
+            } else {
+                this.engine.canvas.style.cursor = 'crosshair';
+            }
+        }
+    }
+
+    clearSelectedItem() {
+        this.selectedItemId = null;
+
+        const visualCursor = document.getElementById('selected-item-cursor');
+        if (visualCursor) {
+            visualCursor.classList.add('hidden');
+        }
+
+        // Restore system cursor
+        document.body.style.cursor = 'default';
+        this.engine.canvas.style.cursor = 'default';
+        // The Input manager will naturally reset the default/pointer on the next mousemove
+    }
+
     updateInventoryUI() {
         const list = document.getElementById('inventory-list');
         if (!list) return;
@@ -80,6 +130,9 @@ export class State {
             }
 
             li.title = item.name; // Tooltip
+            li.onclick = () => {
+                this.setSelectedItem(itemId);
+            };
             list.appendChild(li);
         });
     }
