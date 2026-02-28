@@ -4,40 +4,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdventureCanvas Demo</title>
+    <title>La Vila: Summer of '94</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <div id="game-container">
-        <!-- The game canvas where backgrounds and scenes are rendered -->
-        <canvas id="game-canvas" width="800" height="600"></canvas>
+    <div id="app-wrapper">
+        <div id="inventory-panel">
+            <h3>Backpack</h3>
+            <ul id="inventory-list"></ul>
 
-        <!-- UI Overlays -->
-        <div id="ui-layer">
-            <div id="scene-transition-overlay"></div>
-            <div id="hover-tooltip"></div>
-            <div id="selected-item-cursor" class="hidden"></div>
-
-            <div id="intro-screen" class="screen hidden">
-                <h1 id="intro-title">Demo Game</h1>
-                <button id="start-button">Start Game</button>
+            <div id="debug-wrapper" class="hidden">
+                <button id="debug-drawer-toggle">🔧 Debug Tools</button>
+                <div id="debug-panel" class="hidden">
+                    <hr>
+                    <button id="toggle-debug-btn">Edit Hotspots: OFF</button>
+                    <div style="margin-top: 10px;"></div>
+                    <button id="copy-coords-btn">Copy coordinates</button>
+                    <div id="debug-output"
+                        style="font-size: 10px; margin-top: 10px; white-space: pre-wrap; font-family: monospace; overflow-y: auto; max-height: 150px;">
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <div id="dialogue-box" class="hidden">
-                <p id="dialogue-text"></p>
-                <div id="dialogue-choices"></div>
-            </div>
+        <div id="game-container">
+            <canvas id="game-canvas" width="2800" height="1400"></canvas>
 
-            <div id="inventory-panel">
-                <h3>Inventory</h3>
-                <ul id="inventory-list"></ul>
+            <div id="ui-layer">
+                <div id="scene-transition-overlay"></div>
+                <div id="hover-tooltip"></div>
+                <div id="selected-item-cursor" class="hidden"></div>
+
+                <div id="intro-screen" class="screen hidden">
+                    <h1 id="intro-title">Summer of '94</h1>
+                    <button id="start-button">Start Job</button>
+                </div>
+
+                <div id="dialogue-box" class="hidden">
+                    <p id="dialogue-text"></p>
+                    <div id="dialogue-choices"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Main Game Script as a Module -->
-    <script type="module" src="game.js?v=2"></script>
+    <!-- Engine Core -->
+    <script src="../engine/Renderer.js"></script>
+    <script src="../engine/Input.js"></script>
+    <script src="../engine/State.js"></script>
+    <script src="../engine/Dialogue.js"></script>
+    <script src="../engine/Screens.js"></script>
+    <script src="../engine/AdventureCanvas.js"></script>
+
+    <!-- La Vila Scene Files -->
+    <script src="data/street/items.js"></script>
+    <script src="data/street/dialogues.js"></script>
+    <script src="data/street/scene.js"></script>
+
+    <script src="data/house/items.js"></script>
+    <script src="data/house/dialogues.js"></script>
+    <script src="data/house/scene.js"></script>
+
+    <!-- Main Entry Point -->
+    <script src="game.js"></script>
 </body>
 
 </html>

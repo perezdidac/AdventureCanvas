@@ -1,47 +1,59 @@
-export class State {
+class State {
     constructor(engine, initialSceneId, scenesData, itemsData) {
         this.engine = engine;
         this.initialSceneId = initialSceneId;
         this.currentSceneId = null; // Start null so the first loadScene triggers properly without fading out "nothing"
-        this.scenes = scenesData;
-        this.itemData = itemsData;
+        this.scenes = scenesData || {};
+        this.itemData = itemsData || {};
 
         this.inventory = [];
         this.selectedItemId = null; // Currently held item
         this.flags = {}; // Game variables (e.g., has_met_guard: true)
+        this.isLocked = false; // Prevents any interaction during transitions
     }
 
     getCurrentScene() {
         return this.scenes[this.currentSceneId];
     }
 
-    async loadScene(sceneId) {
-        if (this.scenes[sceneId]) {
-            const overlay = document.getElementById('scene-transition-overlay');
-
-            // Fade out current scene if we are already in one
-            if (this.currentSceneId && overlay) {
-                overlay.style.opacity = '1';
-                // Wait for CSS transition (0.5s match style.css)
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-
-            this.currentSceneId = sceneId;
-            console.log(`Loaded scene: ${sceneId}`);
-
-            // Execute scene enter actions if any
-            const scene = this.scenes[sceneId];
-            if (scene.onEnter) {
-                scene.onEnter(this.engine);
-            }
-
-            // Fade in new scene
-            if (overlay) {
-                overlay.style.opacity = '0';
-            }
-        } else {
+    async loadScene(sceneId, isInstant = false) {
+        if (!this.scenes[sceneId]) {
             console.error(`Scene not found: ${sceneId}`);
+            return;
         }
+
+        const overlay = document.getElementById('scene-transition-overlay');
+
+        if (isInstant || !overlay) {
+            this.currentSceneId = sceneId;
+            const scene = this.scenes[sceneId];
+            if (scene.onEnter) scene.onEnter(this.engine);
+            return;
+        }
+
+        // --- Sequence Start ---
+        this.isLocked = true;
+
+        // 1. Fade OUT (Curtain Down)
+        overlay.style.transition = 'opacity 0.5s ease';
+        overlay.style.opacity = '1';
+        await new Promise(r => setTimeout(r, 500));
+
+        // 2. STAY DARK (very briefly)
+        await new Promise(r => setTimeout(r, 100));
+
+        // Switch the scene ID while it's dark
+        this.currentSceneId = sceneId;
+        console.log(`Loaded scene: ${sceneId}`);
+        const scene = this.scenes[sceneId];
+        if (scene.onEnter) scene.onEnter(this.engine);
+
+        // 3. Fade IN (Curtain Up)
+        overlay.style.opacity = '0';
+        await new Promise(r => setTimeout(r, 500));
+
+        this.isLocked = false;
+        // --- Sequence End ---
     }
 
     setFlag(key, value) {
@@ -73,7 +85,7 @@ export class State {
         return this.inventory.includes(itemId);
     }
 
-    setSelectedItem(itemId) {
+    setSelectedItem(itemId, event) {
         if (this.hasItem(itemId)) {
             this.selectedItemId = itemId;
             const item = this.itemData[itemId];
@@ -83,6 +95,12 @@ export class State {
                 if (visualCursor) {
                     visualCursor.style.backgroundImage = `url(${item.icon})`;
                     visualCursor.classList.remove('hidden');
+
+                    // Set initial position immediately to the mouse click location
+                    if (event) {
+                        visualCursor.style.left = `${event.clientX}px`;
+                        visualCursor.style.top = `${event.clientY}px`;
+                    }
                 }
                 // Hide the actual system cursor
                 document.body.style.cursor = 'none';
@@ -130,8 +148,9 @@ export class State {
             }
 
             li.title = item.name; // Tooltip
-            li.onclick = () => {
-                this.setSelectedItem(itemId);
+            li.onclick = (e) => {
+                e.stopPropagation(); // Prevent the global window click from immediately clearing selection
+                this.setSelectedItem(itemId, e);
             };
             list.appendChild(li);
         });

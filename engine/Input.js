@@ -1,10 +1,22 @@
-export class Input {
+class Input {
     constructor(engine) {
         this.engine = engine;
         this.canvas = engine.canvas;
 
-        this.canvas.addEventListener('click', this.handleClick.bind(this));
-        this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        // Listen to clicks globally to handle dropping items anywhere
+        window.addEventListener('click', this.handleClick.bind(this));
+
+        // Listen to mousemove globally so the custom item-cursor follows everywhere
+        window.addEventListener('mousemove', this.handleMouseMove.bind(this));
+
+        // Debug mode: dragging and resizing
+        this.editingHotspotId = null;
+        this.editMode = null; // 'drag' or 'resize'
+        this.dragOffset = { x: 0, y: 0 };
+
+        // Dragging and resizing listeners
+        this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+        window.addEventListener('mouseup', this.handleMouseUp.bind(this));
     }
 
     getCoordinates(event) {
@@ -20,7 +32,49 @@ export class Input {
         return { x, y };
     }
 
+    handleMouseDown(event) {
+        if (!this.engine.debugEditMode) return;
+
+        // Prevent default browser drag-and-drop behavior
+        event.preventDefault();
+
+        const coords = this.getCoordinates(event);
+        const scene = this.engine.state.getCurrentScene();
+        if (!scene || !scene.hotspots) return;
+
+        // Check for resize handles first (bottom-right 10x10 area)
+        for (const [id, hotspot] of Object.entries(scene.hotspots)) {
+            const handleSize = 15;
+            if (coords.x >= hotspot.x + hotspot.width - handleSize &&
+                coords.x <= hotspot.x + hotspot.width &&
+                coords.y >= hotspot.y + hotspot.height - handleSize &&
+                coords.y <= hotspot.y + hotspot.height) {
+                this.editingHotspotId = id;
+                this.editMode = 'resize';
+                return;
+            }
+        }
+
+        // Check for dragging
+        for (const [id, hotspot] of Object.entries(scene.hotspots)) {
+            if (coords.x >= hotspot.x && coords.x <= hotspot.x + hotspot.width &&
+                coords.y >= hotspot.y && coords.y <= hotspot.y + hotspot.height) {
+                this.editingHotspotId = id;
+                this.editMode = 'drag';
+                this.dragOffset.x = coords.x - hotspot.x;
+                this.dragOffset.y = coords.y - hotspot.y;
+                return;
+            }
+        }
+    }
+
+    handleMouseUp() {
+        this.editingHotspotId = null;
+        this.editMode = null;
+    }
+
     handleMouseMove(event) {
+        if (this.engine.state.isLocked) return;
         const tooltip = document.getElementById('hover-tooltip');
         const visualCursor = document.getElementById('selected-item-cursor');
 
@@ -30,13 +84,30 @@ export class Input {
             visualCursor.style.top = `${event.clientY}px`;
         }
 
+        const coords = this.getCoordinates(event);
+        // ... (rest of method)
+
+        // Handle debug drag/resize FIRST
+        if (this.engine.debugEditMode && this.editingHotspotId) {
+            const scene = this.engine.state.getCurrentScene();
+            const hotspot = scene.hotspots[this.editingHotspotId];
+            if (this.editMode === 'drag') {
+                hotspot.x = coords.x - this.dragOffset.x;
+                hotspot.y = coords.y - this.dragOffset.y;
+            } else if (this.editMode === 'resize') {
+                hotspot.width = Math.max(10, coords.x - hotspot.x);
+                hotspot.height = Math.max(10, coords.y - hotspot.y);
+            }
+            return;
+        }
+
         if (this.engine.dialogue.isActive) {
             this.canvas.style.cursor = 'default';
             if (tooltip) tooltip.style.opacity = '0';
             return;
         }
 
-        const { x, y } = this.getCoordinates(event);
+        const { x, y } = coords;
         const scene = this.engine.state.getCurrentScene();
         if (!scene || !scene.hotspots) {
             if (!this.engine.state.selectedItemId) {
@@ -64,7 +135,15 @@ export class Input {
 
         if (hoveredHotspotId) {
             if (!this.engine.state.selectedItemId) {
-                this.canvas.style.cursor = 'pointer';
+                // In edit mode, show a crosshair if over a handle
+                const handleSize = 15;
+                if (this.engine.debugEditMode &&
+                    x >= hoveredHotspotObj.x + hoveredHotspotObj.width - handleSize &&
+                    y >= hoveredHotspotObj.y + hoveredHotspotObj.height - handleSize) {
+                    this.canvas.style.cursor = 'nwse-resize';
+                } else {
+                    this.canvas.style.cursor = 'pointer';
+                }
             }
             if (tooltip) {
                 // Capitalize first letter or use custom name if defined
@@ -83,6 +162,7 @@ export class Input {
     }
 
     handleClick(event) {
+        if (this.engine.state.isLocked) return;
         // If dialogue is active, ignore canvas clicks
         if (this.engine.dialogue.isActive) return;
 
@@ -91,6 +171,13 @@ export class Input {
     }
 
     processClick(x, y) {
+        if (this.engine.debugEditMode) {
+            if (this.engine.state.selectedItemId) {
+                this.engine.state.clearSelectedItem();
+            }
+            return;
+        }
+
         const scene = this.engine.state.getCurrentScene();
         if (!scene || !scene.hotspots) {
             if (this.engine.state.selectedItemId) {

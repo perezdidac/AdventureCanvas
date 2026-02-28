@@ -1,16 +1,20 @@
-export class Dialogue {
+class Dialogue {
     constructor(engine, dialogueTrees) {
         this.engine = engine;
-        this.trees = dialogueTrees; // Collection of all dialogues for the game
+        this.trees = dialogueTrees || {}; // Collection of all dialogues for the game
         this.isActive = false;
 
         // UI elements
         this.boxEl = document.getElementById('dialogue-box');
         this.textEl = document.getElementById('dialogue-text');
         this.choicesEl = document.getElementById('dialogue-choices');
+        this.vars = {}; // Session-specific variables that reset every time a dialogue starts
+
+        // NEW: Stop clicks on the dialogue box itself from reaching the canvas
+        this.boxEl.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    start(treeId, startNodeId = 'start') {
+    start(treeId, startNodeId = 'start', context = null) {
         if (!this.trees[treeId]) {
             console.error(`Dialogue tree ${treeId} not found.`);
             return;
@@ -23,6 +27,8 @@ export class Dialogue {
         // Also clear any selected item
         this.engine.state.clearSelectedItem();
 
+        this.vars = {}; // Reset session state for the new conversation
+        this.context = context; // Store data for this specific conversation instance
         this.currentTreeId = treeId;
         this.isActive = true;
         this.boxEl.classList.remove('hidden'); // Ensure no display:none
@@ -49,21 +55,38 @@ export class Dialogue {
             node.onEnter(this.engine);
         }
 
-        this.textEl.innerText = node.text;
+        // Support dynamic text functions
+        let displayText = node.text;
+        if (typeof displayText === 'function') {
+            displayText = displayText(this.engine, this.context);
+        }
+        this.textEl.innerText = displayText;
         this.choicesEl.innerHTML = '';
 
         if (node.choices && node.choices.length > 0) {
-            node.choices.forEach(choice => {
+            node.choices.forEach((choice, index) => {
                 // Check if choice has a condition to be shown
                 if (choice.condition && !choice.condition(this.engine)) {
                     return; // Skip this choice
+                }
+
+                // NEW: Check if choice is set to only appear 'once' per session and has already been clicked
+                const choiceId = `${nodeId}_${index}`; // Unique ID for this specific choice in this node
+                if (choice.once && this.vars[choiceId]) {
+                    return;
                 }
 
                 const btn = document.createElement('button');
                 btn.className = 'dialogue-choice';
                 btn.innerText = choice.text;
 
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent click from triggering scene interactions
+                    // Record that this choice was clicked in the session variables
+                    if (choice.once) {
+                        this.vars[choiceId] = true;
+                    }
+
                     if (choice.action) choice.action(this.engine); // Execute inline action if any
 
                     if (choice.nextNode) {
@@ -76,11 +99,12 @@ export class Dialogue {
                 this.choicesEl.appendChild(btn);
             });
         } else {
-            // No choices means click anywhere (or a "Continue" button) to proceed/end
+            // No choices means a "Continue" button to proceed/end
             const btn = document.createElement('button');
             btn.className = 'dialogue-choice';
-            btn.innerText = "(End Conversation)";
-            btn.addEventListener('click', () => {
+            btn.innerText = node.nextNode ? "Continue..." : "Close";
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent click from triggering scene interactions
                 if (node.nextNode) this.showNode(node.nextNode);
                 else this.end();
             });

@@ -1,24 +1,20 @@
-import { Engine } from '../engine/AdventureCanvas.js?v=2';
-import { scenes } from './data/scenes.js?v=2';
-import { items } from './data/items.js?v=2';
-import { dialogues } from './data/dialogues.js?v=2';
-
-// Initialize the game engine
+// Initialize the game engine for 1990s Martorell
 const game = new Engine({
     canvasId: 'game-canvas',
-    width: 800,
-    height: 600,
-    scenes: scenes,
-    items: items,
-    dialogues: dialogues,
-    initialScene: 'room1',
-    debug: true
+    width: 2800, // Matched to new coordinates
+    height: 1400,
+    initialScene: 'street',
+    debug: true // We can keep debug true for now to check our boxes
 });
 
-// Configure the generic intro screen
+// Register the new Street scene components
+game.registerScene('street', street_scene, street_dialogues, street_items);
+game.registerScene('house', house_scene, house_dialogues, house_items);
+
+// Configure the new 90s style intro screen
 game.screens.setupIntroScreen({
-    title: "Mystery of the Robot Island",
-    bgImage: "assets/intro_bg.png", // Example placeholder
+    title: "Summer of '94 in La Vila",
+    bgImage: "assets/street.png",
     startButtonId: "start-button",
     screenId: "intro-screen",
     titleId: "intro-title"
@@ -27,19 +23,20 @@ game.screens.setupIntroScreen({
 // Show the intro screen to start
 game.screens.showIntroScreen();
 
-// We map the start game action to hide the intro and start the engine
-document.getElementById('start-button').addEventListener('click', async () => {
-    // 1. Trigger the fade out on the intro screen
+document.getElementById('start-button').addEventListener('click', async (e) => {
+    e.stopPropagation(); // Prevent click from reaching global window/canvas handlers
+
+    // Lock engine input while intro fades
+    game.state.isLocked = true;
+
     const introEl = document.getElementById('intro-screen');
-    introEl.style.transition = 'opacity 1.0s ease';
+    introEl.style.transition = 'opacity 0.5s ease';
     introEl.style.opacity = '0';
     introEl.style.pointerEvents = 'none';
 
-    // 2. Start the engine immediately so the first scene renders underneath
-    // Because currentSceneId is null initially, the overlay won't dip to black
-    game.start();
-
-    // 3. Cleanup after transition completes
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 500));
     introEl.classList.add('hidden');
+
+    game.state.isLocked = false;
+    game.start();
 });

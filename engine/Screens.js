@@ -1,4 +1,4 @@
-export class Screens {
+class Screens {
     constructor(engine) {
         this.engine = engine;
         this.introConfig = null;

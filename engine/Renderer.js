@@ -1,4 +1,4 @@
-export class Renderer {
+class Renderer {
     constructor(engine) {
         this.engine = engine;
         this.ctx = engine.ctx;
@@ -19,7 +19,7 @@ export class Renderer {
         }
 
         // Draw Objects/Hotspots (Optional: for debug or specific interactive visual states)
-        if (this.engine.config.debug) {
+        if (this.engine.debugEditMode) {
             this.drawDebugHotspots(currentScene.hotspots);
         }
     }
@@ -53,6 +53,13 @@ export class Renderer {
             this.ctx.fillRect(hotspot.x, hotspot.y, hotspot.width, hotspot.height);
             // Draw border
             this.ctx.strokeRect(hotspot.x, hotspot.y, hotspot.width, hotspot.height);
+
+            // Draw resize handle
+            const handleSize = 15;
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillRect(hotspot.x + hotspot.width - handleSize, hotspot.y + hotspot.height - handleSize, handleSize, handleSize);
+            this.ctx.strokeRect(hotspot.x + hotspot.width - handleSize, hotspot.y + hotspot.height - handleSize, handleSize, handleSize);
+
             // Draw label
             this.ctx.fillStyle = 'white';
             this.ctx.fillText(id, hotspot.x + hotspot.width / 2, hotspot.y + hotspot.height / 2);
