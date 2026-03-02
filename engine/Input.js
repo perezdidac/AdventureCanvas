@@ -14,15 +14,43 @@ class Input {
         this.editMode = null; // 'drag' or 'resize'
         this.dragOffset = { x: 0, y: 0 };
 
-        // Dragging and resizing listeners
         this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
         window.addEventListener('mouseup', this.handleMouseUp.bind(this));
+
+        // --- Touch / Pinch-Zoom / Pan ---
+        const viewport = document.getElementById('viewport');
+        if (viewport) {
+            viewport.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+            viewport.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+            viewport.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+            viewport.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
+        }
+
+        // Pan state (mouse or single-finger)
+        this._panning = false;
+        this._panStart = null;
+        this._vpOffsetAtPanStart = null;
+
+        // Pinch state (two fingers)
+        this._pinching = false;
+        this._pinchStartDist = 0;
+        this._pinchStartScale = 1;
+        this._pinchMidpoint = null;
+        this._taps = []; // track active touch points
     }
 
+    // -------------------------------------------------------------------------
+    // COORDINATE HELPERS
+    // -------------------------------------------------------------------------
+
+    // Convert a screen-space clientX/clientY to canvas game-space coords,
+    // taking the current viewport transform (pan + scale) into account.
     getCoordinates(event) {
         const rect = this.canvas.getBoundingClientRect();
 
-        // Calculate click coordinates relative to the canvas internal resolution
+        // canvas.getBoundingClientRect() already gives us the *rendered* position
+        // of the canvas element (after the CSS transform applied by the viewport).
+        // So we only need to scale from CSS pixels to internal resolution.
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
 
@@ -32,17 +60,117 @@ class Input {
         return { x, y };
     }
 
+    // -------------------------------------------------------------------------
+    // VIEWPORT PAN / PINCH-ZOOM (touch)
+    // -------------------------------------------------------------------------
+
+    _vpTranslate(dx, dy) {
+        const vp = this.engine.viewport;
+        if (!vp) return;
+        vp.offsetX += dx;
+        vp.offsetY += dy;
+        vp.clamp();
+        vp.apply();
+    }
+
+    handleTouchStart(e) {
+        e.preventDefault();
+        this._taps = Array.from(e.touches);
+
+        if (e.touches.length === 2) {
+            this._pinching = true;
+            this._panning = false;
+            this._pinchStartDist = this._touchDist(e.touches[0], e.touches[1]);
+            this._pinchStartScale = this.engine.viewport ? this.engine.viewport.scale : 1;
+            this._pinchMidpoint = this._touchMid(e.touches[0], e.touches[1]);
+        } else if (e.touches.length === 1) {
+            this._pinching = false;
+            this._panning = true;
+            this._panStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            this._vpOffsetAtPanStart = this.engine.viewport
+                ? { x: this.engine.viewport.offsetX, y: this.engine.viewport.offsetY }
+                : { x: 0, y: 0 };
+        }
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault();
+
+        if (this._pinching && e.touches.length === 2) {
+            const vp = this.engine.viewport;
+            if (!vp) return;
+
+            const newDist = this._touchDist(e.touches[0], e.touches[1]);
+            const ratio = newDist / this._pinchStartDist;
+            const newScale = Math.max(0.3, Math.min(4, this._pinchStartScale * ratio));
+
+            // Zoom relative to the midpoint
+            const mid = this._touchMid(e.touches[0], e.touches[1]);
+            const containerRect = document.getElementById('game-container').getBoundingClientRect();
+            const cx = mid.x - containerRect.left;
+            const cy = mid.y - containerRect.top;
+
+            // Adjust offset so zoom is centred on the pinch midpoint
+            vp.offsetX = cx - (cx - vp.offsetX) * (newScale / vp.scale);
+            vp.offsetY = cy - (cy - vp.offsetY) * (newScale / vp.scale);
+            vp.scale = newScale;
+            vp.clamp();
+            vp.apply();
+
+        } else if (this._panning && !this._pinching && e.touches.length === 1) {
+            const vp = this.engine.viewport;
+            if (!vp) return;
+
+            const dx = e.touches[0].clientX - this._panStart.x;
+            const dy = e.touches[0].clientY - this._panStart.y;
+            vp.offsetX = this._vpOffsetAtPanStart.x + dx;
+            vp.offsetY = this._vpOffsetAtPanStart.y + dy;
+            vp.clamp();
+            vp.apply();
+        }
+    }
+
+    handleTouchEnd(e) {
+        // Single short tap → treat as click
+        if (e.changedTouches.length === 1 && !this._pinching) {
+            const t = e.changedTouches[0];
+            // Only fire if the touch didn't pan much
+            const dx = t.clientX - (this._panStart ? this._panStart.x : t.clientX);
+            const dy = t.clientY - (this._panStart ? this._panStart.y : t.clientY);
+            if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
+                // Synthesise a click-like event using the touch coordinates
+                const synth = { clientX: t.clientX, clientY: t.clientY };
+                if (!this.engine.state.isLocked && !this.engine.dialogue.isActive) {
+                    const coords = this.getCoordinates(synth);
+                    this.processClick(coords.x, coords.y);
+                }
+            }
+        }
+
+        if (e.touches.length < 2) this._pinching = false;
+        if (e.touches.length === 0) { this._panning = false; this._taps = []; }
+    }
+
+    _touchDist(t1, t2) {
+        return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+    _touchMid(t1, t2) {
+        return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+    }
+
+    // -------------------------------------------------------------------------
+    // MOUSE - DEBUG DRAG / RESIZE
+    // -------------------------------------------------------------------------
+
     handleMouseDown(event) {
         if (!this.engine.debugEditMode) return;
-
-        // Prevent default browser drag-and-drop behavior
         event.preventDefault();
 
         const coords = this.getCoordinates(event);
         const scene = this.engine.state.getCurrentScene();
         if (!scene || !scene.hotspots) return;
 
-        // Check for resize handles first (bottom-right 10x10 area)
+        // Check for resize handles first (bottom-right 15×15 area)
         for (const [id, hotspot] of Object.entries(scene.hotspots)) {
             const handleSize = 15;
             if (coords.x >= hotspot.x + hotspot.width - handleSize &&
@@ -73,21 +201,23 @@ class Input {
         this.editMode = null;
     }
 
+    // -------------------------------------------------------------------------
+    // MOUSE MOVE
+    // -------------------------------------------------------------------------
+
     handleMouseMove(event) {
         if (this.engine.state.isLocked) return;
         const tooltip = document.getElementById('hover-tooltip');
         const visualCursor = document.getElementById('selected-item-cursor');
 
-        // Update custom visual cursor position if it's visible
         if (visualCursor && !visualCursor.classList.contains('hidden')) {
             visualCursor.style.left = `${event.clientX}px`;
             visualCursor.style.top = `${event.clientY}px`;
         }
 
         const coords = this.getCoordinates(event);
-        // ... (rest of method)
 
-        // Handle debug drag/resize FIRST
+        // Handle debug drag/resize
         if (this.engine.debugEditMode && this.editingHotspotId) {
             const scene = this.engine.state.getCurrentScene();
             const hotspot = scene.hotspots[this.editingHotspotId];
@@ -110,23 +240,16 @@ class Input {
         const { x, y } = coords;
         const scene = this.engine.state.getCurrentScene();
         if (!scene || !scene.hotspots) {
-            if (!this.engine.state.selectedItemId) {
-                this.canvas.style.cursor = 'default';
-            }
+            if (!this.engine.state.selectedItemId) this.canvas.style.cursor = 'default';
             if (tooltip) tooltip.style.opacity = '0';
             return;
         }
 
         let hoveredHotspotId = null;
         let hoveredHotspotObj = null;
-        // Check if cursor intersects with any hotspot
         for (const [hotspotId, hotspot] of Object.entries(scene.hotspots)) {
-            if (
-                x >= hotspot.x &&
-                x <= hotspot.x + hotspot.width &&
-                y >= hotspot.y &&
-                y <= hotspot.y + hotspot.height
-            ) {
+            if (x >= hotspot.x && x <= hotspot.x + hotspot.width &&
+                y >= hotspot.y && y <= hotspot.y + hotspot.height) {
                 hoveredHotspotId = hotspotId;
                 hoveredHotspotObj = hotspot;
                 break;
@@ -135,7 +258,6 @@ class Input {
 
         if (hoveredHotspotId) {
             if (!this.engine.state.selectedItemId) {
-                // In edit mode, show a crosshair if over a handle
                 const handleSize = 15;
                 if (this.engine.debugEditMode &&
                     x >= hoveredHotspotObj.x + hoveredHotspotObj.width - handleSize &&
@@ -146,76 +268,95 @@ class Input {
                 }
             }
             if (tooltip) {
-                // Capitalize first letter or use custom name if defined
-                const name = hoveredHotspotObj.name || (hoveredHotspotId.charAt(0).toUpperCase() + hoveredHotspotId.slice(1));
+                const sceneId = this.engine.state.currentSceneId;
+                const i18nKey = `${sceneId}.hotspots.${hoveredHotspotId}`;
+                let name = this.engine.i18n.t(i18nKey);
+
+                // If direct ID key didn't work, try the explicit name property
+                if (name === i18nKey && hoveredHotspotObj.name) {
+                    name = this.engine.i18n.t(hoveredHotspotObj.name);
+                }
+
+                // If still no translation, fallback to a readable ID
+                if (name === i18nKey || name === hoveredHotspotObj.name) {
+                    // Start with what we have
+                    let fallback = name;
+                    if (fallback.includes('.')) {
+                        const parts = fallback.split('.');
+                        fallback = parts[parts.length - 1];
+                    }
+                    name = fallback.charAt(0).toUpperCase() + fallback.slice(1);
+                }
+
                 tooltip.innerText = name;
                 tooltip.style.left = `${event.clientX}px`;
                 tooltip.style.top = `${event.clientY}px`;
                 tooltip.style.opacity = '1';
             }
         } else {
-            if (!this.engine.state.selectedItemId) {
-                this.canvas.style.cursor = 'default';
-            }
+            if (!this.engine.state.selectedItemId) this.canvas.style.cursor = 'default';
             if (tooltip) tooltip.style.opacity = '0';
         }
     }
 
+    // -------------------------------------------------------------------------
+    // CLICK
+    // -------------------------------------------------------------------------
+
     handleClick(event) {
         if (this.engine.state.isLocked) return;
-        // If dialogue is active, ignore canvas clicks
         if (this.engine.dialogue.isActive) return;
-
         const { x, y } = this.getCoordinates(event);
         this.processClick(x, y);
     }
 
     processClick(x, y) {
+        // Edit mode: hitting an X badge deletes the hotspot
         if (this.engine.debugEditMode) {
-            if (this.engine.state.selectedItemId) {
-                this.engine.state.clearSelectedItem();
+            const scene = this.engine.state.getCurrentScene();
+            if (scene && scene.hotspots) {
+                const badgeSize = 28;
+                for (const [id, hotspot] of Object.entries(scene.hotspots)) {
+                    const bx = hotspot.x + hotspot.width - badgeSize / 2;
+                    const by = hotspot.y - badgeSize / 2;
+                    if (x >= bx && x <= bx + badgeSize && y >= by && y <= by + badgeSize) {
+                        if (confirm(`Remove hotspot "${hotspot.name || id}"?`)) {
+                            delete scene.hotspots[id];
+                            this.engine.renderer.draw();
+                        }
+                        return;
+                    }
+                }
             }
+            if (this.engine.state.selectedItemId) this.engine.state.clearSelectedItem();
             return;
         }
 
         const scene = this.engine.state.getCurrentScene();
         if (!scene || !scene.hotspots) {
-            if (this.engine.state.selectedItemId) {
-                this.engine.state.clearSelectedItem();
-            }
+            if (this.engine.state.selectedItemId) this.engine.state.clearSelectedItem();
             return;
         }
 
         let clickedHotspotId = null;
         let clickedHotspot = null;
-
-        // Check if click intersects with any hotspot
         for (const [hotspotId, hotspot] of Object.entries(scene.hotspots)) {
-            if (
-                x >= hotspot.x &&
-                x <= hotspot.x + hotspot.width &&
-                y >= hotspot.y &&
-                y <= hotspot.y + hotspot.height
-            ) {
+            if (x >= hotspot.x && x <= hotspot.x + hotspot.width &&
+                y >= hotspot.y && y <= hotspot.y + hotspot.height) {
                 clickedHotspotId = hotspotId;
                 clickedHotspot = hotspot;
-                break; // Only interact with one thing per click
+                break;
             }
         }
 
         if (this.engine.state.selectedItemId) {
             const itemId = this.engine.state.selectedItemId;
-
             if (clickedHotspot && clickedHotspot.onUseItem) {
                 const consumed = clickedHotspot.onUseItem(this.engine, itemId);
-                if (consumed) {
-                    this.engine.state.removeFromInventory(itemId);
-                }
+                if (consumed) this.engine.state.removeFromInventory(itemId);
             } else if (clickedHotspot) {
                 console.log(`Cannot use ${itemId} on ${clickedHotspotId}`);
             }
-
-            // Revert cursor back to default (dropping item)
             this.engine.state.clearSelectedItem();
             return;
         }
@@ -227,7 +368,6 @@ class Input {
 
     handleInteraction(hotspotId, hotspot) {
         if (hotspot.onClick) {
-            // Execute the onClick action defined in the scene data
             hotspot.onClick(this.engine);
         }
     }

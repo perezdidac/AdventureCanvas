@@ -136,18 +136,25 @@ class State {
             li.className = 'inventory-item';
 
             // If item has an icon, use it. Otherwise, use name initial.
+            let itemName = item.name;
+            const i18nKey = `items.${itemId}.name`;
+            const translatedName = this.engine.i18n.t(i18nKey);
+            if (translatedName !== i18nKey) {
+                itemName = translatedName;
+            }
+
             if (item.icon) {
                 const img = document.createElement('img');
                 img.src = item.icon;
-                img.alt = item.name;
+                img.alt = itemName;
                 img.style.width = '100%';
                 img.style.height = '100%';
                 li.appendChild(img);
             } else {
-                li.innerText = item.name.substring(0, 2).toUpperCase();
+                li.innerText = itemName.substring(0, 2).toUpperCase();
             }
 
-            li.title = item.name; // Tooltip
+            li.title = itemName; // Tooltip
             li.onclick = (e) => {
                 e.stopPropagation(); // Prevent the global window click from immediately clearing selection
                 this.setSelectedItem(itemId, e);

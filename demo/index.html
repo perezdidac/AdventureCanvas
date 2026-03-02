@@ -5,22 +5,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>La Vila: Summer of '94</title>
+    <link rel="stylesheet" href="../engine/AdventureCanvas.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div id="app-wrapper">
         <div id="inventory-panel">
-            <h3>Backpack</h3>
+            <div id="controls-bar">
+                <button id="lang-toggle-btn" data-t-title="ui.lang_toggle">EN</button>
+                <button id="mute-toggle-btn" data-t-title="ui.mute_toggle">🔊</button>
+            </div>
+            <h3 data-t="ui.inventory_title">Backpack</h3>
             <ul id="inventory-list"></ul>
 
             <div id="debug-wrapper" class="hidden">
-                <button id="debug-drawer-toggle">🔧 Debug Tools</button>
+                <button id="debug-drawer-toggle" data-t="ui.debug_tools">🔧 Debug Tools</button>
                 <div id="debug-panel" class="hidden">
                     <hr>
-                    <button id="toggle-debug-btn">Edit Hotspots: OFF</button>
-                    <div style="margin-top: 10px;"></div>
-                    <button id="copy-coords-btn">Copy coordinates</button>
+                    <button id="toggle-debug-btn" data-t="ui.edit_hotspots">Edit Hotspots: OFF</button>
+                    <button id="new-object-btn" data-t="ui.new_object">New object</button>
+                    <button id="copy-coords-btn" data-t="ui.copy_coords">Copy coordinates</button>
                     <div id="debug-output"
                         style="font-size: 10px; margin-top: 10px; white-space: pre-wrap; font-family: monospace; overflow-y: auto; max-height: 150px;">
                     </div>
@@ -29,16 +34,19 @@
         </div>
 
         <div id="game-container">
-            <canvas id="game-canvas" width="2800" height="1400"></canvas>
+            <!-- Viewport div handles pinch-zoom and pan on mobile -->
+            <div id="viewport">
+                <canvas id="game-canvas" width="2800" height="1400"></canvas>
+            </div>
 
             <div id="ui-layer">
                 <div id="scene-transition-overlay"></div>
                 <div id="hover-tooltip"></div>
                 <div id="selected-item-cursor" class="hidden"></div>
 
-                <div id="intro-screen" class="screen hidden">
-                    <h1 id="intro-title">Summer of '94</h1>
-                    <button id="start-button">Start Job</button>
+                <div id="intro-screen" class="screen">
+                    <h1 id="intro-title" data-t="intro.title">Summer of '94</h1>
+                    <button id="start-button" data-t="intro.start">Start Job</button>
                 </div>
 
                 <div id="dialogue-box" class="hidden">
@@ -49,7 +57,14 @@
         </div>
     </div>
 
+    <!-- Locales (Required for file:// support) -->
+    <script src="data/locales/en.js"></script>
+    <script src="data/locales/ca.js"></script>
+
     <!-- Engine Core -->
+    <script src="../engine/AudioManager.js"></script>
+    <script src="../engine/I18n.js"></script>
+    <script src="../engine/Viewport.js"></script>
     <script src="../engine/Renderer.js"></script>
     <script src="../engine/Input.js"></script>
     <script src="../engine/State.js"></script>
@@ -61,10 +76,31 @@
     <script src="data/street/items.js"></script>
     <script src="data/street/dialogues.js"></script>
     <script src="data/street/scene.js"></script>
+    <script src="data/street/scene2.js"></script>
 
     <script src="data/house/items.js"></script>
     <script src="data/house/dialogues.js"></script>
     <script src="data/house/scene.js"></script>
+
+    <script src="data/alley/items.js"></script>
+    <script src="data/alley/dialogues.js"></script>
+    <script src="data/alley/scene.js"></script>
+
+    <script src="data/bar/items.js"></script>
+    <script src="data/bar/dialogues.js"></script>
+    <script src="data/bar/scene.js"></script>
+
+    <script src="data/secretroom/items.js"></script>
+    <script src="data/secretroom/dialogues.js"></script>
+    <script src="data/secretroom/scene.js"></script>
+
+    <script src="data/riverview/items.js"></script>
+    <script src="data/riverview/dialogues.js"></script>
+    <script src="data/riverview/scene.js"></script>
+
+    <script src="data/secondfloor/items.js"></script>
+    <script src="data/secondfloor/dialogues.js"></script>
+    <script src="data/secondfloor/scene.js"></script>
 
     <!-- Main Entry Point -->
     <script src="game.js"></script>

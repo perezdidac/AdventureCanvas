@@ -8,10 +8,13 @@ class Dialogue {
         this.boxEl = document.getElementById('dialogue-box');
         this.textEl = document.getElementById('dialogue-text');
         this.choicesEl = document.getElementById('dialogue-choices');
+        this.currentNodeId = null;
         this.vars = {}; // Session-specific variables that reset every time a dialogue starts
 
         // NEW: Stop clicks on the dialogue box itself from reaching the canvas
-        this.boxEl.addEventListener('click', (e) => e.stopPropagation());
+        if (this.boxEl) {
+            this.boxEl.addEventListener('click', (e) => e.stopPropagation());
+        }
     }
 
     start(treeId, startNodeId = 'start', context = null) {
@@ -30,17 +33,28 @@ class Dialogue {
         this.vars = {}; // Reset session state for the new conversation
         this.context = context; // Store data for this specific conversation instance
         this.currentTreeId = treeId;
+        this.currentNodeId = startNodeId;
         this.isActive = true;
-        this.boxEl.classList.remove('hidden'); // Ensure no display:none
-        // Add a small timeout so display:block applies before opacity transition triggers
-        setTimeout(() => {
-            this.boxEl.classList.add('visible');
-        }, 10);
+
+        if (this.boxEl) {
+            this.boxEl.classList.remove('hidden'); // Ensure no display:none
+            // Add a small timeout so display:block applies before opacity transition triggers
+            setTimeout(() => {
+                this.boxEl.classList.add('visible');
+            }, 10);
+        }
 
         this.showNode(startNodeId);
     }
 
+    refresh() {
+        if (this.isActive && this.currentNodeId) {
+            this.displayNode(this.currentNodeId);
+        }
+    }
+
     showNode(nodeId) {
+        this.currentNodeId = nodeId;
         const tree = this.trees[this.currentTreeId];
         const node = tree[nodeId];
 
@@ -50,61 +64,72 @@ class Dialogue {
             return;
         }
 
-        // Execute any onEnter logic for the dialogue node
+        // Execute logic ONLY when first entering the node
         if (node.onEnter) {
             node.onEnter(this.engine);
         }
+
+        this.displayNode(nodeId);
+    }
+
+    displayNode(nodeId) {
+        const tree = this.trees[this.currentTreeId];
+        const node = tree[nodeId];
+        if (!node || !this.textEl || !this.choicesEl) return;
 
         // Support dynamic text functions
         let displayText = node.text;
         if (typeof displayText === 'function') {
             displayText = displayText(this.engine, this.context);
+            // NEW: If the function returns a translation key, translate it
+            if (typeof displayText === 'string' && displayText.includes('.')) {
+                displayText = this.engine.i18n.t(displayText);
+            }
+        } else if (typeof displayText === 'string') {
+            if (displayText.includes('.')) {
+                displayText = this.engine.i18n.t(displayText);
+            }
         }
         this.textEl.innerText = displayText;
         this.choicesEl.innerHTML = '';
 
         if (node.choices && node.choices.length > 0) {
             node.choices.forEach((choice, index) => {
-                // Check if choice has a condition to be shown
-                if (choice.condition && !choice.condition(this.engine)) {
-                    return; // Skip this choice
-                }
+                if (choice.condition && !choice.condition(this.engine)) return;
 
-                // NEW: Check if choice is set to only appear 'once' per session and has already been clicked
-                const choiceId = `${nodeId}_${index}`; // Unique ID for this specific choice in this node
-                if (choice.once && this.vars[choiceId]) {
-                    return;
-                }
+                const choiceId = `${nodeId}_${index}`;
+                if (choice.once && this.vars[choiceId]) return;
 
                 const btn = document.createElement('button');
                 btn.className = 'dialogue-choice';
-                btn.innerText = choice.text;
+
+                let choiceText = choice.text;
+                if (choiceText.includes('.')) {
+                    choiceText = this.engine.i18n.t(choiceText);
+                }
+                btn.innerText = choiceText;
 
                 btn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent click from triggering scene interactions
-                    // Record that this choice was clicked in the session variables
-                    if (choice.once) {
-                        this.vars[choiceId] = true;
-                    }
+                    e.stopPropagation();
+                    if (choice.once) this.vars[choiceId] = true;
+                    if (choice.action) choice.action(this.engine);
 
-                    if (choice.action) choice.action(this.engine); // Execute inline action if any
-
-                    if (choice.nextNode) {
-                        this.showNode(choice.nextNode); // Traverse to next node
-                    } else {
-                        this.end(); // Or end conversation
-                    }
+                    if (choice.nextNode) this.showNode(choice.nextNode);
+                    else this.end();
                 });
 
                 this.choicesEl.appendChild(btn);
             });
         } else {
-            // No choices means a "Continue" button to proceed/end
             const btn = document.createElement('button');
             btn.className = 'dialogue-choice';
-            btn.innerText = node.nextNode ? "Continue..." : "Close";
+            const continueKey = node.nextNode ? "ui.continue" : "ui.close";
+            let btnText = this.engine.i18n.t(continueKey);
+            if (btnText === continueKey) btnText = (node.nextNode ? "Seguir..." : "Tancar"); // default fallback if locales fail
+
+            btn.innerText = btnText;
             btn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent click from triggering scene interactions
+                e.stopPropagation();
                 if (node.nextNode) this.showNode(node.nextNode);
                 else this.end();
             });
@@ -114,13 +139,14 @@ class Dialogue {
 
     end() {
         this.isActive = false;
-        this.boxEl.classList.remove('visible');
+        this.currentNodeId = null;
+        if (this.boxEl) {
+            this.boxEl.classList.remove('visible');
+        }
 
-        // Let transition finish before potentially applying display:none if someone restores hidden
         setTimeout(() => {
-            if (!this.isActive) {
+            if (!this.isActive && this.boxEl) {
                 // Not adding hidden here to allow the CSS transition to work. 
-                // The 'visible' class handles pointer-events and opacity.
             }
         }, 300);
     }

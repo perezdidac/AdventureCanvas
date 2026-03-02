@@ -19,7 +19,24 @@ class Screens {
 
         if (config.title && config.titleId) {
             const titleEl = document.getElementById(config.titleId);
-            if (titleEl) titleEl.innerText = config.title;
+            if (titleEl) {
+                let title = config.title;
+                if (this.engine.i18n && title.includes('.')) {
+                    title = this.engine.i18n.t(title);
+                }
+                titleEl.innerText = title;
+            }
+        }
+
+        if (config.startButtonId && config.startButtonText) {
+            const startBtn = document.getElementById(config.startButtonId);
+            if (startBtn) {
+                let btnText = config.startButtonText;
+                if (this.engine.i18n && btnText.includes('.')) {
+                    btnText = this.engine.i18n.t(btnText);
+                }
+                startBtn.innerText = btnText;
+            }
         }
 
         if (config.bgImage && config.screenId) {

@@ -1,122 +1,141 @@
 const street_dialogues = {
     grandma_chat: {
         start: {
-            text: "Hola, fill! Be careful with my plant. It's very delicaaaaate.",
+            text: "street.grandma.start",
             choices: [
                 {
-                    text: "Your plant looks beautiful, Senyora Maria.",
+                    text: "street.grandma.choices.praise",
                     nextNode: "praise_plant",
-                    once: true // Won't show again in the same conversation
+                    once: true
                 },
                 {
-                    text: "Have you heard anything about the concert tickets?",
+                    text: "street.grandma.choices.tickets",
                     nextNode: "tickets_hint",
                     once: true
                 },
                 {
-                    text: "Have you seen my friend Pere from the building next door?",
+                    text: "street.grandma.choices.pere",
                     condition: (engine) => engine.state.hasItem('neighbor_letter'),
                     nextNode: "about_pere",
                     once: true
                 },
-                {
-                    text: "I'll leave you to your cleaning.",
-                    nextNode: null
-                }
+                { text: "ui.close" }
             ]
         },
-        praise_plant: {
-            text: "Oh, you have good taste! Not like that Paco... his dog keeps sniffing my geraniums. Use the fountain to get some fresh water if it looks dry, please!",
-            nextNode: "start"
-        },
-        tickets_hint: {
-            text: "Tickets? Bah! In my day, we just brought a chair to the square. Go ask that man with the dog, he spends all day listening to the radio at the bar.",
-            nextNode: "start"
-        },
-        about_pere: {
-            text: "Pere? He left in a hurry this morning. Said he dropped something important. He's always losing things, that boy.",
-            nextNode: "start"
+        praise_plant: { text: "street.grandma.praise_plant", nextNode: "start" },
+        tickets_hint: { text: "street.grandma.tickets_hint", nextNode: "start" },
+        about_pere: { text: "street.grandma.about_pere", nextNode: "start" }
+    },
+    grandma_return_ring_msg: {
+        start: {
+            text: "street.grandma.about_ring",
+            onEnter: (engine) => {
+                engine.state.removeFromInventory('silver_ring');
+                engine.state.setFlag('ring_returned', true);
+            },
+            choices: [{ text: "street.grandma.choices.glad" }]
+        }
+    },
+    grandma_thanks_msg: {
+        start: {
+            text: "street.grandma.thanks",
+            choices: [{ text: "ui.close" }]
         }
     },
     paco_chat: {
         start: {
-            text: "Hey! Beautiful day for a walk, isn't it? Tobi thinks so too, though he's a bit hungry.",
+            text: "street.paco.start",
             choices: [
                 {
-                    text: "Nice dog! Does he bite?",
+                    text: "street.paco.choices.dog_info",
                     nextNode: "dog_info",
                     once: true
                 },
                 {
-                    text: "Do you know anything about the Bar El Gato Negro?",
+                    text: "street.paco.choices.bar_info",
                     nextNode: "bar_info",
                     once: true
                 },
                 {
-                    text: "I heard you found some tickets?",
+                    text: "street.paco.choices.tickets_found",
                     condition: (engine) => engine.state.getFlag('knows_about_tickets') && !engine.state.getFlag('talked_about_tickets_with_paco'),
                     nextNode: "tickets_found",
                     once: true
                 },
                 {
-                    text: "Here, give Tobi this bone.",
+                    text: "street.paco.choices.give_bone",
                     condition: (engine) => engine.state.hasItem('bone'),
                     action: (engine) => engine.state.removeFromInventory('bone'),
                     nextNode: "give_bone",
                     once: true
                 },
                 {
-                    text: "See you later, Paco.",
+                    text: "street.paco.choices.trade_flyer",
+                    condition: (engine) => engine.state.hasItem('torn_flyer') && !engine.state.getFlag('traded_flyer'),
+                    nextNode: "trade_flyer",
+                    once: true
+                },
+                {
+                    text: "street.paco.choices.leave",
                     nextNode: null
                 }
             ]
         },
         dog_info: {
-            text: "Tobi? He wouldn't hurt a fly. But he loves finding things. He buried something shiny near the fountain earlier.",
+            text: "street.paco.dog_info",
             nextNode: "start"
         },
         bar_info: {
-            text: "The Gato Negro? Best coffee in Martorell. But the owner, Quimet, is a bit grumpy. He only talks to people who bring him his morning flyer.",
+            text: "street.paco.bar_info",
             nextNode: "start"
         },
         tickets_found: {
-            text: "Ah, yes! I taped a note in the portal of that building over there. I left the tickets with Quimet inside the bar.",
+            text: "street.paco.tickets_found",
             action: (engine) => engine.state.setFlag('talked_about_tickets_with_paco', true),
             nextNode: "start"
         },
         give_bone: {
-            text: "Whoa, a juicy bone! Tobi, look what Joan brought you. Thanks, friend!",
+            text: "street.paco.give_bone",
+            nextNode: "start"
+        },
+        trade_flyer: {
+            text: "street.paco.trade_flyer",
+            action: (engine) => {
+                engine.state.removeFromInventory('torn_flyer');
+                engine.state.addToInventory('uv_flashlight');
+                engine.state.setFlag('traded_flyer', true);
+            },
             nextNode: "start"
         }
     },
     fountain_msg: {
         start: {
-            text: "The local fountain. The water is cold and clear. It smells like old stone and summer.",
+            text: "street.fountain.start",
             choices: [
                 {
-                    text: "Look behind the fountain",
+                    text: "street.fountain.choices.look",
                     condition: (engine) => !engine.state.hasItem('bone') && !engine.state.getFlag('found_bone'),
                     nextNode: "find_bone",
                     once: true
                 },
                 {
-                    text: "Close"
+                    text: "ui.close"
                 }
             ]
         },
         find_bone: {
-            text: "You find a juicy bone hidden behind some loose stones! Tobi must have buried it here.",
-            action: (engine) => {
+            text: "street.fountain.find_bone",
+            onEnter: (engine) => {
                 engine.state.addToInventory('bone');
                 engine.state.setFlag('found_bone', true);
             },
-            choices: [{ text: "Nice." }]
+            choices: [{ text: "street.fountain.choices_bone.nice" }]
         }
     },
     flyer_msg: {
         start: {
-            text: "It's a colorful flyer: 'FESTA MAJOR 1994 - SOLD OUT'. There's a handwritten note on the back: 'Ask Quimet at the bar'.",
-            action: (engine) => {
+            text: "street.flyer_item.start",
+            onEnter: (engine) => {
                 if (!engine.state.hasItem('flyer_item')) {
                     engine.state.addToInventory('flyer_item');
                 }
@@ -126,22 +145,109 @@ const street_dialogues = {
     },
     sun_msg: {
         start: {
-            text: "The sun is high above Martorell. It's going to be a hot afternoon.",
-            choices: []
+            text: "street.sunset.start",
+            choices: [
+                {
+                    text: "street.sunset.choices.watch",
+                    condition: (engine) => !engine.state.getFlag('gone_to_evening'),
+                    nextNode: "watch_sunset",
+                    once: true
+                },
+                { text: "street.sunset.choices.too_bright" }
+            ]
+        },
+        watch_sunset: {
+            text: "street.sunset.watch_sunset",
+            onEnter: (engine) => engine.state.setFlag('gone_to_evening', true),
+            choices: [
+                { text: "street.sunset.choices_watch.evening", action: (engine) => engine.state.loadScene('street2') }
+            ]
         }
     },
     bar_sign_msg: {
         start: {
-            text: "'Bar El Gato Negro'. The sign looks like it hasn't been painted since the 70s. You can hear soft jazz coming from inside.",
-            choices: []
+            text: "street.hotspots.bar_door",
+            choices: [
+                {
+                    text: "street.bar_door.choices.go_inside",
+                    condition: (engine) => engine.state.getFlag('gone_to_evening'),
+                    action: (engine) => engine.state.loadScene('bar')
+                },
+                {
+                    text: "street.bar_door.choices.closed",
+                    condition: (engine) => !engine.state.getFlag('gone_to_evening'),
+                    nextNode: "locked_msg"
+                },
+                { text: "street.bar_door.choices.later" }
+            ]
+        },
+        locked_msg: {
+            text: "street.bar_door.locked",
+            choices: [{ text: "ui.close" }]
         }
     },
     street_house_door_msg: {
         start: {
-            text: "This is the entrance to the building. Want to go inside?",
+            text: "street.house_door.start",
             choices: [
-                { text: "Enter building", action: (engine) => engine.state.loadScene('house') },
-                { text: "Maybe later" }
+                {
+                    text: "street.house_door.choices.go",
+                    action: (engine) => engine.state.loadScene('house')
+                },
+                { text: "street.house_door.choices.stay" }
+            ]
+        }
+    },
+    alley_transition_msg: {
+        start: {
+            text: "street.transitions.alley.start",
+            choices: [
+                { text: "street.transitions.alley.choices.head", action: (engine) => engine.state.loadScene('alley') },
+                { text: "street.transitions.alley.choices.spooky" }
+            ]
+        }
+    },
+    riverside_transition_msg: {
+        start: {
+            text: "street.transitions.river.start",
+            choices: [
+                { text: "street.transitions.river.choices.go", action: (engine) => engine.state.loadScene('riverview') },
+                { text: "street.transitions.river.choices.stay" }
+            ]
+        }
+    },
+    // Evening variant: open bar door
+    bar_door_open_msg: {
+        start: {
+            text: "street.bar_door_open.start",
+            choices: [
+                { text: "street.bar_door_open.choices.go", action: (engine) => engine.state.loadScene('bar') },
+                { text: "street.bar_door_open.choices.later" }
+            ]
+        }
+    },
+    grandma_evening_chat: {
+        start: {
+            text: "street2.grandma.start",
+            choices: [
+                {
+                    text: "street2.grandma.choices.bar",
+                    nextNode: "bar_comment"
+                },
+                { text: "ui.close" }
+            ]
+        },
+        bar_comment: {
+            text: "street2.grandma.comment",
+            nextNode: "start"
+        }
+    },
+    // Soft narrative trigger to shift from day to evening (street → street2)
+    evening_transition_msg: {
+        start: {
+            text: "street.transitions.evening.start",
+            choices: [
+                { text: "street.transitions.evening.choices.already", action: (engine) => engine.state.loadScene('street2') }
             ]
         }
     }
