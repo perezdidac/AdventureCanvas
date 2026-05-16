@@ -1,1 +1,0 @@
-const secondfloor_items = {};
