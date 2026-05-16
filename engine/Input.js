@@ -2,6 +2,7 @@ class Input {
     constructor(engine) {
         this.engine = engine;
         this.canvas = engine.canvas;
+        this.container = document.getElementById('game-container');
 
         // Listen to clicks globally to handle dropping items anywhere
         window.addEventListener('click', this.handleClick.bind(this));
@@ -106,7 +107,7 @@ class Input {
 
             // Zoom relative to the midpoint
             const mid = this._touchMid(e.touches[0], e.touches[1]);
-            const containerRect = document.getElementById('game-container').getBoundingClientRect();
+            const containerRect = this.container ? this.container.getBoundingClientRect() : {left: 0, top: 0};
             const cx = mid.x - containerRect.left;
             const cy = mid.y - containerRect.top;
 
