@@ -41,7 +41,8 @@ class Renderer {
         if (!hotspots) return;
         const ctx = this.ctx;
 
-        for (const [id, hotspot] of Object.entries(hotspots)) {
+        for (const id in hotspots) {
+            const hotspot = hotspots[id];
             // Draw filled & bordered rect
             ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
             ctx.strokeStyle = 'red';
