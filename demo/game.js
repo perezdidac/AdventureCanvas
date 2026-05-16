@@ -3,29 +3,39 @@ const game = new Engine({
     canvasId: 'game-canvas',
     width: 2800, // Matched to new coordinates
     height: 1400,
-    initialScene: 'street',
+    initialScene: 'habitacio',
     musicPath: 'assets/music/echoes.mp3',
     debug: true // We can keep debug true for now to check our boxes
 });
 
 // Register all scenes
-game.registerScene('street', street_scene, street_dialogues, street_items);
-game.registerScene('street2', street2_scene, null, null); // variant — inherits street's dialogues & items
-game.registerScene('house', house_scene, house_dialogues, house_items);
-game.registerScene('alley', alley_scene, alley_dialogues, alley_items);
-game.registerScene('bar', bar_scene, bar_dialogues, bar_items);
-game.registerScene('secretroom', secretroom_scene, secretroom_dialogues, secretroom_items);
-game.registerScene('riverview', riverview_scene, riverview_dialogues, riverview_items);
-game.registerScene('secondfloor', secondfloor_scene, secondfloor_dialogues, secondfloor_items);
+game.registerScene('habitacio', habitacio_scene, solvay_dialogues, solvay_items);
+game.registerScene('menjador', menjador_scene, null, null);
+game.registerScene('carrer', carrer_scene, null, null);
+game.registerScene('rodalies_pont', rodalies_pont_scene, null, null);
+game.registerScene('cau', cau_scene, null, null);
+game.registerScene('exterior_cap', exterior_cap_scene, null, null);
+game.registerScene('recepcio_cap', recepcio_cap_scene, null, null);
+game.registerScene('arxiu_medic', arxiu_medic_scene, null, null);
+game.registerScene('carrero_radio', carrero_radio_scene, null, null);
+game.registerScene('estudi_radio', estudi_radio_scene, null, null);
+game.registerScene('sender_serra', sender_serra_scene, null, null);
+game.registerScene('torretes', torretes_scene, null, null);
+game.registerScene('pou_ventilacio', pou_ventilacio_scene, null, null);
+game.registerScene('campament_oblidats', campament_oblidats_scene, null, null);
+game.registerScene('ascensor_carrega', ascensor_carrega_scene, null, null);
+game.registerScene('passarella_control', passarella_control_scene, null, null);
+game.registerScene('despatx_director', despatx_director_scene, null, null);
+game.registerScene('sala_maquines', sala_maquines_scene, null, null);
 
 // Configure the new 90s style intro screen
 game.screens.setupIntroScreen({
-    title: "Summer of '94 in Martorell",
+    title: "La Boira de Solvay",
     bgImage: "assets/street.png",
     startButtonId: "start-button",
     screenId: "intro-screen",
     titleId: "intro-title",
-    startButtonText: "START GAME"
+    startButtonText: "JUGAR"
 });
 
 // Load locales and update UI immediately (especially for the intro screen)
