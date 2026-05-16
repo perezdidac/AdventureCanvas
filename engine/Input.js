@@ -3,6 +3,10 @@ class Input {
         this.engine = engine;
         this.canvas = engine.canvas;
 
+        // Cache DOM elements used in high-frequency events like mousemove
+        this.tooltip = document.getElementById('hover-tooltip');
+        this.visualCursor = document.getElementById('selected-item-cursor');
+
         // Listen to clicks globally to handle dropping items anywhere
         window.addEventListener('click', this.handleClick.bind(this));
 
@@ -207,8 +211,8 @@ class Input {
 
     handleMouseMove(event) {
         if (this.engine.state.isLocked) return;
-        const tooltip = document.getElementById('hover-tooltip');
-        const visualCursor = document.getElementById('selected-item-cursor');
+        const tooltip = this.tooltip;
+        const visualCursor = this.visualCursor;
 
         if (visualCursor && !visualCursor.classList.contains('hidden')) {
             visualCursor.style.left = `${event.clientX}px`;
